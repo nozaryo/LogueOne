@@ -3,6 +3,9 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include "i2c.h"
+#include "bmp280.h"
+
+#define NULL 0
 
 #define BMP280_ADDRESS 0x77
 
@@ -22,7 +25,7 @@
 #define BMP280_WHOAMI 0x58
 
 
-double* bmp280_preAddress = NULL, bmp280_tempAddress = NULL;
+double *bmp280_preAddress = NULL, *bmp280_tempAddress = NULL;
 uint8_t bmp280_data[30]; //dig 24 data 6
 /*
 0 ~ 2   PressData
@@ -31,7 +34,7 @@ uint8_t bmp280_data[30]; //dig 24 data 6
 12 ~ 29 dig_PData
 */
 
-int bmp280_init(double* a, double* b){
+int bmp280_init(double *a, double *b){
 //return 0 正常終了
 //return 1 異常終了
   bmp280_preAddress = a;
@@ -108,7 +111,7 @@ int bmp280_interrupt(int getData_quantity/*得られたデータ数*/){
             return -1;
             break;
     }
-
+    return -1;
 }
 
 void  bmp280_getPre(){
@@ -131,14 +134,12 @@ void  bmp280_getTemp(){
 
 void bmp280_calcPre(){
     if(bmp280_preAddress == NULL){
-        return 0;
     }
 
 }
 
 void bmp280_calcTemp(){
     if(bmp280_tempAddress == NULL){
-        return 0;
     }
 
 }

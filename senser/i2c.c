@@ -86,11 +86,11 @@ int i2c_readSet_Nbyte
             TWCR = (1<<TWINT)|(1 << TWEA)|(1<<TWEN)|(1<<TWIE);//ACK返答
         }
         while(!(TWCR & 1<<TWINT));
-        readData = TWDR;
+        getData[i] = TWDR;
     }
     
     TWCR = ((1<<TWSTO)|1<<TWINT)|(1<<TWEN);
-
+    return 0;
 }
 
 void i2c_stop(){
@@ -102,4 +102,5 @@ int i2c_wait(){
     while(!(TWCR & 1<<TWINT)){
     
     }
+    return 0;
 }

@@ -80,7 +80,6 @@ ISR( USART_UDRE_vect )
 }
 
 ISR(TWI_vect){
-i2c_bmp280Read();
 }
 /* USART Get recv data count			*/
 uint8_t usart_recv_test( void )
@@ -197,7 +196,5 @@ int main( void )
     hardwareInit();
 
     while(1){
-        printf("%x\n",i2c_readSet(BMP280_AD, 0xD0));
-        _delay_ms(1000);
     }
 }
