@@ -7,14 +7,15 @@
 #include <string.h>
 #include <stdio.h>
 #include "senser/i2c.h"
+#include "senser/bmp280.h"
 #include "FatFs/ff.h"
 #include "MMC/mmc.h"
 
 #define FIFO_SIZE 16				/* FIFO buffer size		*/
 #define BAUD 9600					/* USART BAUD			*/
 
-#define MPU9250_AD 0x68
-#define BMP280_AD 0x76
+//#define MPU9250_AD 0x68
+//#define BMP280_AD 0x76
 
 /* USART PORTS define	*/
 #define UBRR  UBRR0
@@ -43,6 +44,8 @@ void usart_putchar( char data );
 static int _usart_putchar( char c ,FILE *stream );
 static void hardwareInit( void );
 //----------------------------------
+
+double pre = 0, temp = 0;
 
 typedef struct FIFO_t {				/* FIFO buffer struct	*/
 	uint8_t idx_w;
@@ -182,19 +185,27 @@ static void hardwareInit( void )
 	SMCR = _BV(SE); 						/* Power seve enabel for IDOL 	*/
 
     i2c_init();
-    i2c_writeSet(MPU9250_AD,0x37,0b00000010);
-    i2c_writeSet(MPU9250_AD,0x1C,0b00010000);
-    i2c_writeSet(MPU9250_AD,0x1B,0b00011000);
-    i2c_writeSet(0x0C,0x0A,0b00000110);
-    i2c_writeSet(BMP280_AD, 0xF5, 0x90);
+    if(bmp280_init(&pre, &temp)) printf("init_err\r\n");
 	sei();		  							/* enable global interrupt 		*/
 }
 
 /* MAIN						*/
 int main( void )
 {
+    char buf[64];
     hardwareInit();
+	DDRC |= (1 << PC1)|(1 << PC0);
 
     while(1){
+        if(bmp280_getPre()) printf("get_err\r\n");
+        sprintf( buf ,"%f,%f\r\n" , pre, temp);
+		printf( "%s" ,buf );
+	    PORTC |= (1 << PC1);
+        PORTC &= ~(1 << PC0);
+	    _delay_ms(500);
+	    PORTC &= ~(1 << PC1);
+        PORTC |= (1 << PC0);
+	    _delay_ms(500);
+
     }
 }
