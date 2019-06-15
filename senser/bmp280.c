@@ -53,19 +53,23 @@ int bmp280_init(double *a, double *b){
 
 }
 
-int bmp280_interrupt(int getData_quantity/*得られたデータ数*/){
+int bmp280_interrupt(int callingCnt/*呼び出された回数*/){
 
     switch(TWSR & 0xF8){
         case 0x08://開始条件送信
-            TWDR = (BMP280_ADDRESS<<1) + 0;
-            TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+            if(callingCnt == 0){
+                TWDR = (BMP280_ADDRESS<<1) + 0;
+                TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+            }else{
+                return -1;
+            }
             break;
 
         case 0x18://SLA+W送信 ACK受信A
-            if(0 <= getData_quantity && getData_quantity < 6){
+            if(callingCnt == 1){
                 TWDR = BMP280_TEMP_MSB;
                 TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
-            }else if(6 <= getData_quantity && getData_quantity < 30){
+            }else if(callingCnt == 12){
                 TWDR = BMP280_TEMP_MSB;
                 TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
             }else{
@@ -74,47 +78,82 @@ int bmp280_interrupt(int getData_quantity/*得られたデータ数*/){
             break;
         
         case 0x28://データバイト送信 ACK受信
-            TWCR = (1<<TWSTA)|(1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+            if(callingCnt == 2 || callingCnt == 13){
+                TWCR = (1<<TWSTA)|(1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+            }else{
+                return -3;
+            }
             break;
         
         case 0x10://再送開始条件送信
-            TWDR = (BMP280_ADDRESS<<1) + 1;
-            TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+            if(callingCnt == 3 || callingCnt == 14){
+                TWDR = (BMP280_ADDRESS<<1) + 1;
+                TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+            }else if(callingCnt == 11){
+                TWDR = (BMP280_ADDRESS<<1) + 0;
+                TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+            }else{
+                return -4;
+            }
             break;
         
         case 0x40://SLA+R送信 ACK受信
-            if(getData_quantity == 5 || getData_quantity == 29){
-                TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);//NACK返答
-            }else{
+            if(callingCnt == 4 || callingCnt == 15){
+                if( callingCnt == 4){
+                    bmp280_data[0] = TWDR;
+                }else{
+                    bmp280_data[6] = TWDR;
+                }
                 TWCR = (1<<TWINT)|(1 << TWEA)|(1<<TWEN)|(1<<TWIE);//ACK返答
+            }else{
+                return -5;
             }
             break;
         
         case 0x50://データバイト受信 ACK応答
-            bmp280_data[getData_quantity] = TWDR;
-            TWCR = (1<<TWINT)|(1 << TWEA)|(1<<TWEN)|(1<<TWIE);//ACK返答
-            return getData_quantity + 1;
+            if(5 <= callingCnt && callingCnt <= 9){
+                bmp280_data[callingCnt - 4] = TWDR;
+                if(callingCnt == 9){
+                    TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);//NACK返答
+                }else{
+                    TWCR = (1<<TWINT)|(1 << TWEA)|(1<<TWEN)|(1<<TWIE);//ACK返答
+                }
+            }else if(16 <= callingCnt && callingCnt <= 38){
+                bmp280_data[callingCnt - 9] = TWDR;
+                if(callingCnt == 39){
+                    TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWIE);//NACK返答
+                }else{
+                    TWCR = (1<<TWINT)|(1 << TWEA)|(1<<TWEN)|(1<<TWIE);//ACK返答
+                }
+            }else{
+                return -6;
+            }
             break;
         
         case 0x58://データバイト受信 NACK応答
-            bmp280_data[getData_quantity] = TWDR;
-            TWCR = ((1<<TWSTO)|1<<TWINT)|(1<<TWEN)|(1<<TWIE);
-            if(getData_quantity == 5){
-                return getData_quantity + 1;
-            }else if(getData_quantity == 29){
-                bmp280_calcPre();
-                bmp280_calcTemp();
-                return 0;
+            if(callingCnt == 10 || callingCnt == 39){
+                if(callingCnt == 10){
+                    TWCR = (1<<TWSTA)||(1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+                }else if(callingCnt == 39){
+                    bmp280_calcAll();
+                    TWCR = (1<<TWSTO)||(1<<TWINT)|(1<<TWEN)|(1<<TWIE);
+                    return 0;
+                }
             }else{
-                return -1;
+                return -7;
             }
             break;
         
         default:
-            return -1;
+            return -8;
             break;
     }
-    return -1;
+
+    return callingCnt + 1;
+}
+
+int bmp280_getAll(){
+    return bmp280_getPre();
 }
 
 int  bmp280_getPre(){
@@ -140,6 +179,10 @@ int  bmp280_getTemp(){
     return 0;
 
 
+}
+
+int bmp280_calcAll(){
+    return (bmp280_calcTemp() & bmp280_calcPre());
 }
 
 int bmp280_calcPre(){

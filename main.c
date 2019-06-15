@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "senser/i2c.h"
 #include "senser/bmp280.h"
+#include "senser/ADXL375.h"
 #include "FatFs/ff.h"
 #include "MMC/mmc.h"
 
@@ -33,6 +34,8 @@
 #define USART_SEND_ENABLE()  ( UCSRB |=  _BV(UDRIE) )
 #define USART_SEND_DISABLE() ( UCSRB &= ~_BV(UDRIE) )
 
+#define millis() ((ctime * 10))
+
 //Prototype declaration-------------
 ISR( TIMER1_COMPA_vect );
 ISR( USART_RX_vect );
@@ -45,7 +48,9 @@ static int _usart_putchar( char c ,FILE *stream );
 static void hardwareInit( void );
 //----------------------------------
 
-double pre = 0, temp = 0;
+double pre = 0, temp = 0, big_accX = 0, big_accY = 0, big_accZ = 0;
+int bmp280_interrupt_return = 0;
+uint64_t ctime = 0;
 
 typedef struct FIFO_t {				/* FIFO buffer struct	*/
 	uint8_t idx_w;
@@ -61,6 +66,7 @@ static volatile FIFO rxfifo;		/* recv FIFO buffer 	*/
 ISR( TIMER1_COMPA_vect )
 {
 	disk_timerproc();	/* MMC Timer	*/
+    ctime++;
 }
 
 /* UART RECV interrupt					*/
@@ -83,6 +89,8 @@ ISR( USART_UDRE_vect )
 }
 
 ISR(TWI_vect){
+    bmp280_interrupt_return = bmp280_interrupt(bmp280_interrupt_return);
+//    printf("%d\r\n",bmp280_interrupt_return);
 }
 /* USART Get recv data count			*/
 uint8_t usart_recv_test( void )
@@ -186,19 +194,23 @@ static void hardwareInit( void )
 
     i2c_init();
     if(bmp280_init(&pre, &temp)) printf("init_err\r\n");
+    if(ADXL375_init(&big_accX, &big_accY, &big_accZ)) printf("init_err\r\n");
 	sei();		  							/* enable global interrupt 		*/
 }
 
 /* MAIN						*/
 int main( void )
 {
-    char buf[64];
+    char buf[128];
     hardwareInit();
+    ADXL375_setOffset(-0.35, -0.005, -0.50);
 	DDRC |= (1 << PC1)|(1 << PC0);
 
     while(1){
-        if(bmp280_getPre()) printf("get_err\r\n");
-        sprintf( buf ,"%f,%f\r\n" , pre, temp);
+//        i2c_start();
+//        bmp280_getAll();
+        ADXL375_getAcc();
+        sprintf( buf ,"%x\r\n" , i2c_readSet(0x68, 0x75));
 		printf( "%s" ,buf );
 	    PORTC |= (1 << PC1);
         PORTC &= ~(1 << PC0);
