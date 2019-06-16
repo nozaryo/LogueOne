@@ -9,6 +9,7 @@
 #include "senser/i2c.h"
 #include "senser/bmp280.h"
 #include "senser/ADXL375.h"
+#include "senser/mpu9250.h"
 #include "FatFs/ff.h"
 #include "MMC/mmc.h"
 
@@ -49,6 +50,7 @@ static void hardwareInit( void );
 //----------------------------------
 
 double pre = 0, temp = 0, big_accX = 0, big_accY = 0, big_accZ = 0;
+double ax = 0, ay = 0, az = 0, gx = 0, gy = 0, gz = 0, temp2 = 0, tx = 0, ty = 0, tz = 0; 
 int bmp280_interrupt_return = 0;
 uint64_t ctime = 0;
 
@@ -195,6 +197,7 @@ static void hardwareInit( void )
     i2c_init();
     if(bmp280_init(&pre, &temp)) printf("init_err\r\n");
     if(ADXL375_init(&big_accX, &big_accY, &big_accZ)) printf("init_err\r\n");
+    if(mpu9250_init(&ax, &ay, &az, &temp, &gx, &gy, &gz, &tx, &ty, &tz)) printf("init_err\r\n");
 	sei();		  							/* enable global interrupt 		*/
 }
 
@@ -203,14 +206,15 @@ int main( void )
 {
     char buf[128];
     hardwareInit();
-    ADXL375_setOffset(-0.35, -0.005, -0.50);
+//    ADXL375_setOffset(-0.35, -0.005, -0.50);
 	DDRC |= (1 << PC1)|(1 << PC0);
 
     while(1){
 //        i2c_start();
 //        bmp280_getAll();
-        ADXL375_getAcc();
-        sprintf( buf ,"%x\r\n" , i2c_readSet(0x68, 0x75));
+//        ADXL375_getAcc();
+        mpu9250_getAcc();
+        sprintf( buf ,"%lf,%lf,%lf\r\n" , ax,ay,az);
 		printf( "%s" ,buf );
 	    PORTC |= (1 << PC1);
         PORTC &= ~(1 << PC0);

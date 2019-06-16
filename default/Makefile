@@ -42,7 +42,7 @@ HEX_EEPROM_FLAGS += --change-section-lma .eeprom=0 --no-change-warnings
 
 
 ## Objects that must be built in order to link
-OBJECTS = main.o ff.o mmc.o i2c.o bmp280.o ADXL375.o
+OBJECTS = main.o ff.o mmc.o i2c.o bmp280.o ADXL375.o mpu9250.o
 
 ## Objects explicitly added by the user
 LINKONLYOBJECTS =
@@ -67,6 +67,9 @@ bmp280.o: ../senser/bmp280.c
 	$(CC) $(INCLUDES) $(CFLAGS) -c  $<
 
 ADXL375.o: ../senser/ADXL375.c
+	$(CC) $(INCLUDES) $(CFLAGS) -c  $<
+
+mpu9250.o: ../senser/mpu9250.c
 	$(CC) $(INCLUDES) $(CFLAGS) -c  $<
 
 ##Link
