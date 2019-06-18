@@ -3,10 +3,11 @@
 
 #define NULL 0
 
+extern uint64_t i2c_timer;
 void i2c_init();
 void i2c_start();
-void i2c_write(int data);
-void i2c_writeSet(uint8_t addres, uint8_t registerID, uint8_t writeData);
+int i2c_write(int data);
+int i2c_writeSet(uint8_t addres, uint8_t registerID, uint8_t writeData);
 uint8_t i2c_readSet(uint8_t addres, uint8_t registerID);
 int i2c_readSet_Nbyte
 (uint8_t addres, uint8_t* getData, uint8_t firstRegister, int registerQty);

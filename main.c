@@ -1,9 +1,10 @@
-/*															*/
+
 /* AtMega328p/@16MHz USART 9600BAUD							*/
 /*															*/
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <avr/eeprom.h>
 #include <string.h>
 #include <stdio.h>
 #include "senser/i2c.h"
@@ -52,7 +53,7 @@ static void hardwareInit( void );
 double pre = 0, temp = 0, big_accX = 0, big_accY = 0, big_accZ = 0;
 double ax = 0, ay = 0, az = 0, gx = 0, gy = 0, gz = 0, temp2 = 0, tx = 0, ty = 0, tz = 0; 
 int bmp280_interrupt_return = 0;
-uint64_t ctime = 0;
+extern uint64_t ctime = 0;
 
 typedef struct FIFO_t {				/* FIFO buffer struct	*/
 	uint8_t idx_w;
@@ -69,6 +70,7 @@ ISR( TIMER1_COMPA_vect )
 {
 	disk_timerproc();	/* MMC Timer	*/
     ctime++;
+    i2c_timer = millis();
 }
 
 /* UART RECV interrupt					*/
@@ -204,24 +206,97 @@ static void hardwareInit( void )
 /* MAIN						*/
 int main( void )
 {
+	FRESULT res;
+	FATFS fs;
+	DIR dir;
+	FILINFO info;
+	FIL fil;
+	uint16_t cnt;
+	int ret;
     char buf[128];
+    char dataFileName[16];
+    uint8_t times;
+
     hardwareInit();
-//    ADXL375_setOffset(-0.35, -0.005, -0.50);
+	printf( "start\r\n");
+    ADXL375_setOffset(-0.35, -0.005, -0.50);
 	DDRC |= (1 << PC1)|(1 << PC0);
-
-    while(1){
-//        i2c_start();
-//        bmp280_getAll();
-//        ADXL375_getAcc();
+	PORTC |= (1 << PC1);
+    PORTC &= ~(1 << PC0);
+    
+//    f_mount( 0 ,&fs );								/* re mount			*/
+//
+//	strcpy( buf ,"<-------------------------------------------------->\n" );
+//	printf( "%s" ,buf );
+//	res = f_opendir( &dir ,"" );
+//	if ( res != FR_OK ) {
+//		printf( "f_opendir() : error %u\n\n" ,res );
+//         while(1){
+//	        PORTC ^= (1 << PC1)|(1 << PC0);
+//            _delay_ms(500);
+//         }
+//	}
+//
+//
+//	sprintf(dataFileName, "data.csv");	
+//    res = f_open( &fil , dataFileName, FA_WRITE|FA_OPEN_ALWAYS);
+//	if ( res != FR_OK ) {
+//	     printf( "f_open() : error %u\n\n" ,res );
+//         while(1){
+//	        PORTC ^= (1 << PC1)|(1 << PC0);
+//            _delay_ms(500);
+//         }
+//	 }
+//    res = f_lseek(&fil, f_size(&fil));
+//    f_close( &fil );
+//
+    while(1){    
+//	    sprintf(dataFileName, "data.csv");	
+//        res = f_open( &fil , dataFileName, FA_WRITE|FA_OPEN_ALWAYS);
+//	    if ( res != FR_OK ) {
+//	         printf( "f_open() : error %u\n\n" ,res );
+//             while(1){
+//	             PORTC ^= (1 << PC1)|(1 << PC0);
+//               _delay_ms(500);
+//          }  
+//	     }  
+//        res = f_lseek(&fil, f_size(&fil));
         mpu9250_getAcc();
-        sprintf( buf ,"%lf,%lf,%lf\r\n" , ax,ay,az);
-		printf( "%s" ,buf );
-	    PORTC |= (1 << PC1);
-        PORTC &= ~(1 << PC0);
-	    _delay_ms(500);
-	    PORTC &= ~(1 << PC1);
-        PORTC |= (1 << PC0);
-	    _delay_ms(500);
-
+        ADXL375_getAcc();
+        bmp280_getAll();
+        sprintf(buf ,"%lf,%lf,%lf,%lf\r\n",pre,temp,ax,big_accX);
+//        ret = f_puts(buf,&fil);
+        printf("%s",buf);
+//        f_close( &fil );
+	    PORTC ^= (1 << PC1)|(1 << PC0);
+        _delay_ms(500);
     }
+//    f_mount( 0 ,&fs );								/* re mount			*/
+
+//	strcpy( buf ,"<-------------------------------------------------->\n" );
+//	printf( "%s" ,buf );
+//	res = f_opendir( &dir ,"" );
+//	if ( res != FR_OK ) {
+//		printf( "f_opendir() : error %u\n\n" ,res );
+//	}
+//
+//
+//	sprintf(dataFileName, "data.csv");	
+//    while(1){
+//        res = f_open( &fil , dataFileName, FA_WRITE|FA_OPEN_ALWAYS);
+//	    if ( res != FR_OK ) {
+//	        printf( "f_open() : error %u\n\n" ,res );
+//	    }
+//    
+//        mpu9250_getAcc();
+//        ADXL375_getAcc();
+//        bmp280_getAll();
+//        sprintf(buf ,"%ld,%lf,%lf,%lf,%lf\r\n",ctime*10,pre,temp,ax,big_accX);
+//
+//        ret = f_puts(buf,&fil);
+//        f_close( &fil );
+//
+//	    PORTC ^= (1 << PC1)|(1 << PC0);
+//        _delay_ms(500);
+//    }
 }
