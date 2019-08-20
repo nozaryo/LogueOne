@@ -30,6 +30,14 @@ double accRange;
 int gyroRange;
 
 uint8_t mpu9250_data[20];
+/*
+
+
+
+
+
+
+*/
                   
 int mpu9250_init(double *ax, double *ay, double *az, 
                 double *temp,
@@ -97,7 +105,14 @@ int mpu9250_calcAcc(){
 }
 
 int mpu9250_calcGyro(){
+    int16_t raw_gx, raw_gy, raw_gz;
+    raw_gx = (((int16_t)mpu9250_data[8]) << 8) | (int16_t)mpu9250_data[9] ;
+    raw_gy = (((int16_t)mpu9250_data[10]) << 8) | (int16_t)mpu9250_data[11] ;
+    raw_gz = (((int16_t)mpu9250_data[12]) << 8) | (int16_t)mpu9250_data[13] ;
     
+    *mpu9250_gx = raw_gx * gyroRange / 32768.0;
+    *mpu9250_gy = raw_gy * gyroRange / 32768.0;
+    *mpu9250_gz = raw_gz * gyroRange / 32768.0;
 }
 
 int mpu9250_calcTemp(){
