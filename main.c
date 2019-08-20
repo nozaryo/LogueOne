@@ -209,35 +209,6 @@ static void hardwareInit( void )
 int main( void )
 {
 
-//    uint8_t  recu[3];
-//    int valeur;
-//    float pression;
-//
-//    hardwareInit();
-//    DDRD |= (1 << PD5);
-//    DDRB |= (1 << PB3)|(1 << PB5)|(1 << PB2);
-//    SPCR |= (1 << SPE)|(1 << MSTR)|(1 << SPR0);
-//    SPSR = 0x00;
-//    PORTC |= (1 << PC1);
-//    PORTC &= ~(1 << PC0);
-//    while(1){
-//        PORTD &= ~(1 << PD5);
-//        _delay_us(20);
-//        for(int i = 0; i < 2; i++){
-//            SPDR = 0x00;
-//            recu[i] = SPDR;
-//            _delay_us(20);
-//        }
-//        PORTD |= (1 << PD5);
-//        valeur = (recu[0] << 8 | recu[1]);
-//        pression = (valeur/4096.0-0.08)/0.09;
-//        printf("%f\r\n",pression);
-//        _delay_ms(1000);
-//        PORTC = PORTC ^ 0xFF;
-//    }
-
-
-
     FRESULT res;
     FATFS fs;
     DIR dir;
@@ -245,19 +216,12 @@ int main( void )
     int ret;
     char buf[128];
     char dataFileName[16];
-    uint8_t  recu[3];
-    int valeur;
-    float pression;
 
 
     hardwareInit();
     printf("sd_test\r\n");
     //ADXL375_setOffset(-0.35, -0.005, -0.50);
     DDRC |= (1 << PC1)|(1 << PC0);
-//    DDRD |= (1 << PD5);
-//    DDRB |= (1 << PB3)|(1 << PB5)|(1 << PB2);
-//    SPCR |= (1 << SPE)|(1 << MSTR)|(1 << SPR0);
-//    SPSR = 0x00;
     PORTC = 0x00;
     sprintf(dataFileName, "data.csv");
 start:
@@ -281,7 +245,7 @@ start:
             continue;
         }
         res = f_lseek( &fil, f_size(&fil));
-        sprintf(buf ,"time[ms],pre,temp,ax,ay,az,gx,gy,gz,big_accX,big_accY,big_accZ,pression\n");
+        sprintf(buf ,"time[ms],pre,temp,ax,ay,az,gx,gy,gz,big_accX,big_accY,big_accZ\n");
         printf("%s",buf);
         ret = f_puts(buf,&fil);
         if ( ret == EOF ) {
@@ -297,21 +261,6 @@ start:
     PORTC &= ~(1 << PC0);
 
     while(1){
-//         DDRD |= (1 << PD5);
-//         DDRB |= (1 << PB3)|(1 << PB5)|(1 << PB2);
-//         SPCR |= (1 << SPE)|(1 << MSTR)|(1 << SPR0);
-//         SPSR = 0x00;
-//         PORTD &= ~(1 << PD5);
-//         _delay_us(20);
-//         for(int i = 0; i < 2; i++){
-//             SPDR = 0x00;
-//             _delay_us(20);
-//             recu[i] = SPDR;
-//             _delay_us(20);
-//         }
-//         PORTD |= (1 << PD5);
-//         _delay_us(20);
-        
         res = f_open( &fil , dataFileName, FA_WRITE|FA_OPEN_ALWAYS);
         if ( res != FR_OK ) {
             printf( "f_open() : error %u\n\n" ,res );
@@ -319,11 +268,7 @@ start:
         }
         res = f_lseek( &fil, f_size(&fil));
 
-        mpu9250_getAcc();
-        ax += 1.38;
-        ay += 1.55;
-        az += 0.22;
-        mpu9250_getGyro();
+        mpu9250_getAll();
         //ADXL375_getAcc();
         bmp280_getAll();
 
@@ -345,15 +290,11 @@ start:
             printf("%s",buf);
             ret = f_puts(buf,&fil);
 
-            sprintf(buf ,"%lf,%lf,%lf,", big_accX, big_accY, big_accZ);
-            printf("%s",buf);
+            sprintf(buf ,"%lf,%lf,%lf\n", big_accX, big_accY, big_accZ);
+            printf("%s\r",buf);
             ret = f_puts(buf,&fil);
             
 
-            sprintf(buf ,"%02x%02x\n", recu[0], recu[1]);
-            printf("%s\r",buf);
-            ret = f_puts(buf,&fil);
-        
             PORTC ^= (1 << PC1)|(1 << PC0);
 
             f_close( &fil );
