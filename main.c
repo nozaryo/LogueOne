@@ -16,6 +16,8 @@
 
 #define FIFO_SIZE 16                /* FIFO buffer size        */
 #define BAUD 9600                    /* USART BAUD            */
+#define MES_TIME 120000 //ms
+#define INT_TIME 300000 //ms 
 
 //#define MPU9250_AD 0x68
 //#define BMP280_AD 0x76
@@ -53,7 +55,7 @@ static void hardwareInit( void );
 double pre = 0, temp = 0, big_accX = 0, big_accY = 0, big_accZ = 0;
 double ax = 0, ay = 0, az = 0, gx = 0, gy = 0, gz = 0, temp2 = 0, tx = 0, ty = 0, tz = 0; 
 int bmp280_interrupt_return = 0;
-uint64_t ctime = 0;
+uint64_t ctime = 0, startTime = 0;
 
 typedef struct FIFO_t {                /* FIFO buffer struct    */
     uint8_t idx_w;
@@ -198,7 +200,7 @@ static void hardwareInit( void )
 
     i2c_init();
     if(bmp280_init(&pre, &temp)) printf("init_err\r\n");
-    if(ADXL375_init(&big_accX, &big_accY, &big_accZ)) printf("init_err\r\n");
+//    if(ADXL375_init(&big_accX, &big_accY, &big_accZ)) printf("init_err\r\n");
     if(mpu9250_init(&ax, &ay, &az, &temp, &gx, &gy, &gz, &tx, &ty, &tz)) printf("init_err\r\n");
     sei();                                      /* enable global interrupt         */
 }
@@ -206,6 +208,36 @@ static void hardwareInit( void )
 /* MAIN                        */
 int main( void )
 {
+
+//    uint8_t  recu[3];
+//    int valeur;
+//    float pression;
+//
+//    hardwareInit();
+//    DDRD |= (1 << PD5);
+//    DDRB |= (1 << PB3)|(1 << PB5)|(1 << PB2);
+//    SPCR |= (1 << SPE)|(1 << MSTR)|(1 << SPR0);
+//    SPSR = 0x00;
+//    PORTC |= (1 << PC1);
+//    PORTC &= ~(1 << PC0);
+//    while(1){
+//        PORTD &= ~(1 << PD5);
+//        _delay_us(20);
+//        for(int i = 0; i < 2; i++){
+//            SPDR = 0x00;
+//            recu[i] = SPDR;
+//            _delay_us(20);
+//        }
+//        PORTD |= (1 << PD5);
+//        valeur = (recu[0] << 8 | recu[1]);
+//        pression = (valeur/4096.0-0.08)/0.09;
+//        printf("%f\r\n",pression);
+//        _delay_ms(1000);
+//        PORTC = PORTC ^ 0xFF;
+//    }
+
+
+
     FRESULT res;
     FATFS fs;
     DIR dir;
@@ -213,11 +245,19 @@ int main( void )
     int ret;
     char buf[128];
     char dataFileName[16];
+    uint8_t  recu[3];
+    int valeur;
+    float pression;
+
 
     hardwareInit();
     printf("sd_test\r\n");
-    ADXL375_setOffset(-0.35, -0.005, -0.50);
+    //ADXL375_setOffset(-0.35, -0.005, -0.50);
     DDRC |= (1 << PC1)|(1 << PC0);
+    DDRD |= (1 << PD5);
+    DDRB |= (1 << PB3)|(1 << PB5)|(1 << PB2);
+    SPCR |= (1 << SPE)|(1 << MSTR)|(1 << SPR0);
+    SPSR = 0x00;
     PORTC = 0x00;
     sprintf(dataFileName, "data.csv");
 start:
@@ -241,7 +281,7 @@ start:
             continue;
         }
         res = f_lseek( &fil, f_size(&fil));
-        sprintf(buf ,"time[ms],pre,temp,ax,ay,az,big_accX,big_accY,big_accZ\n");
+        sprintf(buf ,"time[ms],pre,temp,ax,ay,az,big_accX,big_accY,big_accZ,pression\n");
         printf("%s",buf);
         ret = f_puts(buf,&fil);
         if ( ret == EOF ) {
@@ -265,27 +305,57 @@ start:
         res = f_lseek( &fil, f_size(&fil));
 
         mpu9250_getAcc();
-        ADXL375_getAcc();
+        ax += 1.38;
+        ay += 1.55;
+        az += 0.22;
+        //ADXL375_getAcc();
         bmp280_getAll();
-        
-        sprintf(buf ,"%ld,",millis());
-        printf("%s",buf);
-        ret = f_puts(buf,&fil);
+        if(millis() % 1000 == 0){
+            PORTD &= ~(1 << PD5);
+            _delay_us(20);
+            for(int i = 0; i < 2; i++){
+                SPDR = 0x00;
+                recu[i] = SPDR;
+                _delay_us(20);
+            }
+            PORTD |= (1 << PD5);
+            _delay_us(20);
+            valeur = (recu[0] << 8 | recu[1]);
+            pression = (valeur/4096.0-0.08)/0.09;
+         }
 
-        sprintf(buf ,"%lf,%lf,", pre, temp);
-        printf("%s",buf);
-        ret = f_puts(buf,&fil);
+        if(millis() - startTime < MES_TIME || millis() % INT_TIME == 0){
         
-        sprintf(buf ,"%lf,%lf,%lf,", ax, ay, az);
-        printf("%s",buf);
-        ret = f_puts(buf,&fil);
-        
-        sprintf(buf ,"%lf,%lf,%lf\n", big_accX, big_accY, big_accZ);
-        printf("%s\r",buf);
-        ret = f_puts(buf,&fil);
-        
-        PORTC ^= (1 << PC1)|(1 << PC0);
+            sprintf(buf ,"%ld,",millis());
+            printf("%s",buf);
+            ret = f_puts(buf,&fil);
 
-        f_close( &fil );
-    }
+            sprintf(buf ,"%lf,%lf,", pre, temp);
+            printf("%s",buf);
+            ret = f_puts(buf,&fil);
+        
+            sprintf(buf ,"%lf,%lf,%lf,", ax, ay, az);
+            printf("%s",buf);
+            ret = f_puts(buf,&fil);
+        
+            sprintf(buf ,"%lf,%lf,%lf,", big_accX, big_accY, big_accZ);
+            printf("%s\r",buf);
+            ret = f_puts(buf,&fil);
+            
+
+            sprintf(buf ,"%f\n", pression);
+            printf("%s\r",buf);
+            ret = f_puts(buf,&fil);
+        
+            PORTC ^= (1 << PC1)|(1 << PC0);
+
+            f_close( &fil );
+        
+        }
+
+       if(ax*ax + ay*ay + az*az > 2.0*2.0){
+          startTime = millis(); 
+       }
+    }  
+
 }
